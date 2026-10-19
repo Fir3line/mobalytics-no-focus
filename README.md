@@ -2,46 +2,41 @@
 
 A small, reversible Windows patch that stops Mobalytics' League game-event handlers from automatically raising its desktop windows.
 
-**Unofficial. Supports only the inspected Windows build `1.956.363` and the exact file hashes in [`supported.json`](supported.json).** An update requires a new code review and supported hashes. This does not automatically patch arbitrary future releases.
+**No installation required. Uses Windows PowerShell 5.1, included with Windows 10/11.** Supports only the inspected Windows build **1.956.363** and the exact file hashes in `supported.json`.
 
 ## Use
 
-1. Install Python 3.10 or newer, available as `py` or `python`.
-2. Download this repository and extract it to a writable folder. Keep that folder for Undo.
-3. Close any active match, then double-click **Do.cmd** and confirm.
-4. To reverse the change, double-click **Undo.cmd**.
+1. Download this repository as a ZIP and extract it to a writable folder.
+2. Close any active match, double-click **Do.cmd**, and confirm the signature-change warning.
+3. To reverse the patch, double-click **Undo.cmd**.
 
-Do saves and verifies both originals in the local `.backups` folder before modifying anything. Each change closes and restarts Mobalytics. Neither script needs administrator access for the standard per-user installation.
+Keep the extracted folder: Do stores both verified originals in its local `.backups` directory. No administrator access is needed for the standard per-user installation. Each change closes and restarts Mobalytics. Running Do twice or Undo twice does nothing on the second run.
 
-The scripts stop if installed files or backups do not match the reviewed build. Undo also refuses unknown versions: do not copy old backups over a newer release.
+Unknown files and app updates are refused. A newer release needs fresh inspection; these scripts intentionally support only this one. Undo also refuses unknown versions, so old backups cannot overwrite a new install.
 
-## What changes
+## Review the change
 
-All patch logic is in [`patch_mobalytics.py`](patch_mobalytics.py), using only Python's standard library:
+All logic lives in [Patch-Mobalytics.ps1](Patch-Mobalytics.ps1). The two CMD files only launch it; [supported.json](supported.json) pins the original file hashes.
 
-1. Locate `build/src_lol_bootstrap_ts.js` inside the installed `resources/app.asar`.
-2. Within the League window controller's automatic window-update/game-state methods, replace exactly **13** calls to `restore`, `showWindowBehind`, or `bringToFront` with same-length no-op statements.
-3. Recompute that entry's archive integrity hashes and update the matching expected archive-header hash embedded in `Mobalytics.exe`.
+The script replaces exactly **13** calls to `restore`, `showWindowBehind`, or `bringToFront` within the League window controller's automatic window-update and game-state methods with same-length no-op statements. It updates the modified archive entry hashes and the expected archive-header hash embedded in `Mobalytics.exe`.
 
-Manual opening handlers and overlay code are not edited. Startup with the patch was observed on the inspected build. **In-match focus behavior, overlay and game integration have not been verified.**
+Manual opening handlers and overlay code are not edited. Startup and read-only file validation were observed on the inspected build. **In-match focus behavior, overlays and game integration remain unverified.**
 
-## Important limitations
+## Limitations
 
-- Modifying the executable **invalidates its publisher signature**. Mobalytics logs an unsigned-application warning; some integration features may reject it. Undo restores the original executable and archive.
-- This keeps the archive hash check consistent; it does not disable system security, anti-cheat, or Windows signature enforcement.
-- Updates may overwrite the patch. Reapplying to a new release needs inspection, not just replacement hashes.
-- A process-existence startup check cannot prove all app features work. If startup fails, the script attempts to restore the state from before that run. If recovery fails, transaction copies remain in `.backups` for manual recovery.
-- No game files, account settings, network requests or update settings are modified. No proprietary binaries or extracted application source are included in this repository.
+- The executable modification **invalidates its publisher signature**. Mobalytics logs an unsigned-app warning; some integration features may reject it. Undo restores both original files.
+- The archive integrity check remains consistent. No Windows security, anti-cheat or system signature-enforcement settings are changed.
+- The launcher uses a process-scoped execution-policy bypass to run the downloaded local script; it does not change the machine's execution policy.
+- The startup check proves only that a process remains running. On failure, the script attempts rollback to the starting state. If recovery fails, transaction copies remain in `.backups` for manual recovery.
+- No downloads, external modules, game files, account settings or update settings are involved.
+- No proprietary binaries, backups, extracted application source or personal logs are included in this repository.
 
-## CLI and verification
+## Read-only check / custom paths
 
 ```powershell
-py -3 patch_mobalytics.py do --accept-signature-change
-py -3 patch_mobalytics.py check
-py -3 patch_mobalytics.py undo
-py -3 -m unittest discover -s tests -v
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Patch-Mobalytics.ps1 -Action Check
 ```
 
-Optional `--install-dir` and `--backup-dir` arguments accept custom paths. `check` is read-only and requires existing backups. Backups contain Mobalytics' own proprietary files; keep them local.
+Check requires existing backups. Use `-BackupDir "C:\path\to\backups"` or `-InstallDir "C:\path\to\mobalytics-desktop"` for custom locations. Do accepts `-AcceptSignatureChange` after reviewing this document.
 
-This project is not affiliated with Mobalytics or Overwolf. The MIT license covers this repository's code only.
+This is an unofficial project, unaffiliated with Mobalytics or Overwolf. The MIT license covers only the code in this repository.
