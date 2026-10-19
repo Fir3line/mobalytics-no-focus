@@ -1,0 +1,8 @@
+.backups/
+__pycache__/
+*.pyc
+*.log
+*.exe
+*.asar
+*.original
+transaction-*
